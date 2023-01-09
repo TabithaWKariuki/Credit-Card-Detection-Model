@@ -1,0 +1,198 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## 1. Defining the Question
+
+**Specifying the Data Analytic Question**
+
+Build a classifier using machine learning and R concepts to detect fraudulent and non-fraudulent credit card transactions.
+
+
+**Understanding the context**
+
+Perform modeling for the give data set <https://drive.google.com/file/d/1CTAlmlREFRaEN3NoHHitewpqAtWS5cVQ/view>
+
+## 2. Loading the libraries and importing the dataset
+
+```{r}
+# Loading the necessary libraries
+
+library(ranger)
+library(caret)
+library(data.table)
+library(ggplot2)
+library(lattice)
+
+```
+
+```{r}
+# Loading our data
+
+data <- read.csv("C:/Users/User/Downloads/Credit-Card-Dataset/creditcard.csv")
+```
+
+## 3. Understanding our data
+
+```{r}
+# Displaying the shape of our data
+
+dim(data)
+```
+
+```{r}
+# Checking the first five rows of the data
+
+head(data,5)
+```
+
+```{r}
+# Checking the last five rows of the data
+
+tail(data,5)
+```
+
+## 4. Data Exploration
+
+```{r}
+# Passing the column class as an argument in table function to give the frequency 
+# table.
+
+table(data$Class)
+```
+
+```{r}
+# Generating a summary of measures of central tendency
+
+summary(data$Amount)
+```
+
+```{r}
+# Listing our column names
+
+names(data)
+```
+
+```{r}
+# Displaying variance
+
+var(data$Amount)
+```
+
+```{r}
+# Displaying standard deviation
+
+sd(data$Amount)
+```
+
+```{r}
+# Using feature scaling to reduce interference of extreme values in our data.
+
+data$Amount=scale(data$Amount)
+credit=data[,-c(1)]
+head(credit)
+```
+
+## 5. Modeling
+
+**Machine learning using Logistic regression**
+
+```{r}
+# Loading the catools library and split our dataset into training set and test set
+
+library(caTools)
+set.seed(123)
+data_sample = sample.split(credit$Class,SplitRatio=0.80)
+train_data = subset(credit,data_sample==TRUE)
+test_data = subset(credit,data_sample==FALSE)
+
+```
+
+
+```{r}
+# Checking the shape of the train set and test set
+
+dim(train_data)
+dim(test_data)
+```
+
+```{r}
+# Fitting Logistic Regression Model
+
+Logistic_Model=glm(Class~.,test_data,family = binomial())
+```
+
+```{r}
+# Summary of the Fitted Logistic Regression Model
+
+summary(Logistic_Model)
+```
+
+```{r}
+# Plotting the model
+
+plot(Logistic_Model)
+```
+
+**Gradient Boosting Model**
+
+```{r}
+# Loading the gbm library
+
+library(gbm, quietly=TRUE)
+```
+
+
+```{r}
+# Training the GBM model
+system.time(
+       model_gbm <- gbm(Class ~ .
+               , distribution = "bernoulli"
+               , data = rbind(train_data, test_data)
+               , n.trees = 500
+               , interaction.depth = 3
+               , n.minobsinnode = 100
+               , shrinkage = 0.01
+               , bag.fraction = 0.5
+               , train.fraction = nrow(train_data) / (nrow(train_data) + nrow(test_data))
+)
+)
+# Determine best iteration based on test data
+gbm.iter = gbm.perf(model_gbm, method = "test")
+```
+
+
+```{r}
+model.influence = relative.influence(model_gbm, n.trees = gbm.iter, sort. = TRUE)
+
+#Plot the gbm model
+
+plot(model_gbm)
+```
+
+```{r}
+# Plot and calculate AUC on test data
+
+gbm_test = predict(model_gbm, newdata = test_data, n.trees = gbm.iter)
+gbm_auc = roc(test_data$Class, gbm_test, plot = TRUE, col = "red")
+```
+
+```{r}
+# Printing gbm_auc
+
+print(gbm_auc)
+```
+
+**Decision Trees**
+
+```{r}
+library(rpart)
+library(rpart.plot)
+decisionTree_model <- rpart(Class ~ . , data, method = 'class')
+predicted_val <- predict(decisionTree_model, data, type = 'class')
+probability <- predict(decisionTree_model, data, type = 'prob')
+rpart.plot(decisionTree_model)
+```
+
